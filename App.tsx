@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import { AppMode } from './types.ts';
+import { AppMode, UserSession } from './types.ts';
 import DailyMode from './components/DailyMode.tsx';
 import RealityMode from './components/RealityMode.tsx';
 import CalendarView from './components/CalendarView.tsx';
@@ -8,9 +8,11 @@ import WeeklyOverview from './components/WeeklyOverview.tsx';
 import HistoryView from './components/HistoryView.tsx';
 import PatternManager from './components/PatternManager.tsx';
 import SettingsView from './components/SettingsView.tsx';
+import AuthView from './components/AuthView.tsx';
 
 const App: React.FC = () => {
   const [mode, setMode] = useState<AppMode>('INTRO');
+  const [session, setSession] = useState<UserSession | null>(null);
   const [retroactiveDate, setRetroactiveDate] = useState<Date | undefined>(undefined);
 
   const handleStartDaily = (date?: Date) => {
@@ -19,11 +21,30 @@ const App: React.FC = () => {
   };
 
   const startApp = () => {
+    const visited = localStorage.getItem('iqaa_visited');
+    if (visited) {
+      setMode('AUTH');
+    } else {
+      setMode('AUTH'); // Always go to Auth for first use
+    }
+  };
+
+  const onAuthComplete = (newSession: UserSession) => {
     localStorage.setItem('iqaa_visited', 'true');
+    setSession(newSession);
     setMode('HOME');
   };
 
+  const handleLogout = () => {
+    setSession(null);
+    setMode('AUTH');
+  };
+
   const renderContent = () => {
+    if (!session && mode !== 'INTRO' && mode !== 'AUTH') {
+      return <AuthView onAuthComplete={onAuthComplete} />;
+    }
+
     switch (mode) {
       case 'INTRO':
         return (
@@ -53,6 +74,8 @@ const App: React.FC = () => {
             </div>
           </div>
         );
+      case 'AUTH':
+        return <AuthView onAuthComplete={onAuthComplete} />;
       case 'DAILY':
         return <DailyMode targetDate={retroactiveDate} onComplete={() => { setMode('HOME'); setRetroactiveDate(undefined); }} onCancel={() => { setMode('HOME'); setRetroactiveDate(undefined); }} />;
       case 'REALITY':
@@ -66,12 +89,16 @@ const App: React.FC = () => {
       case 'PATTERNS':
         return <PatternManager onBack={() => setMode('HOME')} />;
       case 'SETTINGS':
-        return <SettingsView onBack={() => setMode('HOME')} />;
+        return <SettingsView onBack={() => setMode('HOME')} onLogout={handleLogout} />;
       default:
         return (
           <div className="max-w-md mx-auto space-y-12 py-12 px-6 animate-gentle" dir="rtl">
             <header className="flex justify-between items-center mb-8">
-              <div className="w-10"></div>
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 rounded-full bg-app-sage flex items-center justify-center text-[10px] font-bold text-white uppercase tracking-tighter">
+                  {session?.username.substring(0,2)}
+                </div>
+              </div>
               <h1 className="text-4xl font-bold text-text-main tracking-tight">إيقاع</h1>
               <button onClick={() => setMode('SETTINGS')} className="p-2 text-text-muted hover:bg-gray-100 rounded-full transition-all">
                 <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -117,13 +144,13 @@ const App: React.FC = () => {
   return (
     <div className="min-h-screen bg-app-bg selection:bg-app-blue-gray/20 overflow-x-hidden">
       <nav className="fixed top-0 left-0 right-0 z-50 p-6 flex items-center justify-start pointer-events-none">
-        {mode !== 'HOME' && mode !== 'INTRO' && (
+        {mode !== 'HOME' && mode !== 'INTRO' && mode !== 'AUTH' && (
           <button onClick={() => setMode('HOME')} className="p-3 text-white hover:opacity-90 transition-all bg-text-main shadow-airy rounded-full pointer-events-auto active:scale-95">
             <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M10 19l-7-7m0 0l7-7m-7 7h18" /></svg>
           </button>
         )}
       </nav>
-      <main className={mode === 'INTRO' ? '' : 'pt-4 pb-16'}><div key={mode}>{renderContent()}</div></main>
+      <main className={(mode === 'INTRO' || mode === 'AUTH') ? '' : 'pt-4 pb-16'}><div key={mode}>{renderContent()}</div></main>
     </div>
   );
 };

@@ -73,4 +73,11 @@ export interface Case {
   patternId?: string; 
 }
 
-export type AppMode = 'INTRO' | 'HOME' | 'DAILY' | 'REALITY' | 'CALENDAR' | 'WEEKLY_OVERVIEW' | 'HISTORY' | 'PATTERNS' | 'SETTINGS';
+export interface UserSession {
+  userId: string;
+  username: string;
+  encryptionKey: CryptoKey;
+  salt: string;
+}
+
+export type AppMode = 'INTRO' | 'AUTH' | 'HOME' | 'DAILY' | 'REALITY' | 'CALENDAR' | 'WEEKLY_OVERVIEW' | 'HISTORY' | 'PATTERNS' | 'SETTINGS';

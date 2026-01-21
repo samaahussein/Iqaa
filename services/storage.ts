@@ -1,60 +1,113 @@
 
-import { Case, Outcome, Pattern } from '../types.ts';
+import { Case, Pattern, UserSession } from '../types.ts';
+import { encryptBlob, decryptBlob } from './crypto.ts';
 
-const STORAGE_KEY = 'mirror_cases_v1';
-const PATTERNS_KEY = 'mirror_patterns_v1';
-const API_URL_KEY = 'iqaa_sheets_api_url';
+const STORAGE_KEY = 'iqaa_cases_v2';
+const PATTERNS_KEY = 'iqaa_habits_v2';
 
-export const getApiUrl = () => localStorage.getItem(API_URL_KEY) || '';
-export const setApiUrl = (url: string) => localStorage.setItem(API_URL_KEY, url);
+let currentSession: UserSession | null = null;
 
-export const saveCase = (newCase: Case): void => {
-  const cases = getCases();
-  cases.push(newCase);
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(cases));
-  
-  const apiUrl = getApiUrl();
-  if (apiUrl) {
-    syncToSheets(apiUrl, 'Cases', [
-      newCase.id, 
-      new Date(newCase.timestamp).toLocaleString('ar-EG'),
-      newCase.energy || '', 
-      newCase.feeling || '', 
-      newCase.context || '', 
-      newCase.whatHappened, 
-      newCase.howItFelt, 
-      newCase.whatIDid, 
-      newCase.whatResulted, 
-      newCase.learning || '', 
-      newCase.learningType || '', 
-      newCase.patternId || ''
-    ]);
+export const setSession = (session: UserSession | null) => {
+  currentSession = session;
+};
+
+/**
+ * DATABASE SYNC (Assuming a standard REST API wrapper for Neon)
+ */
+
+async function apiRequest(endpoint: string, method: string, body?: any) {
+  if (!currentSession) return null;
+  try {
+    const response = await fetch(`/api/${endpoint}`, {
+      method,
+      headers: { 
+        'Content-Type': 'application/json',
+        'X-User-ID': currentSession.userId 
+      },
+      body: body ? JSON.stringify(body) : undefined
+    });
+    if (!response.ok) throw new Error('Network error');
+    return await response.json();
+  } catch (err) {
+    console.error(`DB Request Failed (${endpoint}):`, err);
+    return null;
+  }
+}
+
+/**
+ * RETAIN DATA: Restore from Cloud
+ */
+export const syncFromCloud = async (): Promise<void> => {
+  if (!currentSession) return;
+
+  // 1. Restore Cases
+  const remoteCases = await apiRequest('cases', 'GET');
+  if (remoteCases && Array.isArray(remoteCases)) {
+    const decryptedCases: Case[] = [];
+    for (const item of remoteCases) {
+      try {
+        const decrypted = await decryptBlob(item.encrypted_payload, item.iv, currentSession.encryptionKey);
+        decryptedCases.push(decrypted);
+      } catch (e) { console.error("Could not decrypt case", e); }
+    }
+    if (decryptedCases.length > 0) {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(decryptedCases));
+    }
+  }
+
+  // 2. Restore Habits
+  const remoteHabits = await apiRequest('habits', 'GET');
+  if (remoteHabits && Array.isArray(remoteHabits)) {
+    const decryptedPatterns: Pattern[] = [];
+    for (const item of remoteHabits) {
+      try {
+        const decrypted = await decryptBlob(item.encrypted_payload, item.iv, currentSession.encryptionKey);
+        decryptedPatterns.push(decrypted);
+      } catch (e) { console.error("Could not decrypt habit", e); }
+    }
+    if (decryptedPatterns.length > 0) {
+      localStorage.setItem(PATTERNS_KEY, JSON.stringify(decryptedPatterns));
+    }
   }
 };
 
-export const updateLearning = (id: string, newLearning: string): void => {
-  const cases = getCases();
-  const index = cases.findIndex(c => c.id === id);
-  if (index !== -1) {
-    cases[index].learning = newLearning;
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(cases));
-  }
-};
-
-export const deleteCase = (id: string): void => {
-  const cases = getCases();
-  const filtered = cases.filter(c => c.id !== id);
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(filtered));
-};
+/**
+ * CASES STORAGE
+ */
 
 export const getCases = (): Case[] => {
   const data = localStorage.getItem(STORAGE_KEY);
   if (!data) return [];
   try {
-    return JSON.parse(data);
+    return JSON.parse(data).sort((a: Case, b: Case) => b.timestamp - a.timestamp);
   } catch (e) {
-    console.error('Failed to parse storage', e);
     return [];
+  }
+};
+
+export const saveCase = async (newCase: Case): Promise<void> => {
+  const cases = getCases();
+  cases.push(newCase);
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(cases));
+
+  if (currentSession) {
+    const { ciphertext, iv } = await encryptBlob(newCase, currentSession.encryptionKey);
+    await apiRequest('cases', 'POST', {
+      id: newCase.id,
+      encrypted_payload: ciphertext,
+      iv: iv,
+      timestamp: newCase.timestamp
+    });
+  }
+};
+
+export const deleteCase = async (id: string): Promise<void> => {
+  const cases = getCases();
+  const filtered = cases.filter(c => c.id !== id);
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(filtered));
+
+  if (currentSession) {
+    await apiRequest(`cases/${id}`, 'DELETE');
   }
 };
 
@@ -82,6 +135,10 @@ export const findMatch = (context: string, feeling: string): Case | null => {
   return feelingMatches[0];
 };
 
+/**
+ * HABITS (PATTERNS) STORAGE
+ */
+
 export const getPatterns = (): Pattern[] => {
   const data = localStorage.getItem(PATTERNS_KEY);
   if (!data) return [];
@@ -92,7 +149,7 @@ export const getPatterns = (): Pattern[] => {
   }
 };
 
-export const savePattern = (label: string): void => {
+export const savePattern = async (label: string): Promise<void> => {
   const patterns = getPatterns();
   const newPattern: Pattern = {
     id: crypto.randomUUID(),
@@ -102,43 +159,22 @@ export const savePattern = (label: string): void => {
   patterns.push(newPattern);
   localStorage.setItem(PATTERNS_KEY, JSON.stringify(patterns));
 
-  const apiUrl = getApiUrl();
-  if (apiUrl) {
-    syncToSheets(apiUrl, 'Patterns', [newPattern.id, newPattern.label, new Date(newPattern.createdAt).toLocaleString('ar-EG')]);
+  if (currentSession) {
+    const { ciphertext, iv } = await encryptBlob(newPattern, currentSession.encryptionKey);
+    await apiRequest('habits', 'POST', {
+      id: newPattern.id,
+      encrypted_payload: ciphertext,
+      iv: iv
+    });
   }
 };
 
-export const deletePattern = (id: string): void => {
+export const deletePattern = async (id: string): Promise<void> => {
   const patterns = getPatterns();
   const filtered = patterns.filter(p => p.id !== id);
   localStorage.setItem(PATTERNS_KEY, JSON.stringify(filtered));
-};
 
-async function syncToSheets(url: string, type: 'Cases' | 'Patterns', values: any[]) {
-  try {
-    await fetch(url, {
-      method: 'POST',
-      mode: 'no-cors',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ type, values })
-    });
-  } catch (error) {
-    console.error('Sync failed:', error);
-  }
-}
-
-export const syncAllToSheets = async () => {
-  const url = getApiUrl();
-  if (!url) return;
-  
-  const cases = getCases();
-  const patterns = getPatterns();
-  
-  for (const c of cases) {
-    await syncToSheets(url, 'Cases', [c.id, new Date(c.timestamp).toLocaleString('ar-EG'), c.energy || '', c.feeling || '', c.context || '', c.whatHappened, c.howItFelt, c.whatIDid, c.whatResulted, c.learning || '', c.learningType || '', c.patternId || '']);
-  }
-  
-  for (const p of patterns) {
-    await syncToSheets(url, 'Patterns', [p.id, p.label, new Date(p.createdAt).toLocaleString('ar-EG')]);
+  if (currentSession) {
+    await apiRequest(`habits/${id}`, 'DELETE');
   }
 };

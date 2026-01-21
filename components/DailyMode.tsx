@@ -42,37 +42,43 @@ const DailyMode: React.FC<DailyModeProps> = ({ onComplete, onCancel, targetDate 
 
   const handleSaveEntry = async () => {
     setIsSaving(true);
-    const learningType: LearningType = await classifyLearning(
-      currentEntry.whatIDid || "", 
-      currentEntry.whatResulted || ""
-    );
+    try {
+      const learningType: LearningType = await classifyLearning(
+        currentEntry.whatIDid || "", 
+        currentEntry.whatResulted || ""
+      );
 
-    const timestamp = targetDate ? targetDate.getTime() : Date.now();
+      const timestamp = targetDate ? targetDate.getTime() : Date.now();
 
-    const newCase: Case = {
-      id: crypto.randomUUID(),
-      timestamp,
-      energy: dailyEnergy,
-      feeling: currentEntry.feeling as Feeling,
-      context: currentEntry.context as Context,
-      whatHappened: currentEntry.whatHappened || '',
-      howItFelt: currentEntry.howItFelt || '',
-      whatIDid: currentEntry.whatIDid || '',
-      whatResulted: currentEntry.whatResulted || '',
-      learning: currentEntry.learning?.trim() || undefined,
-      learningType: learningType, 
-    };
-    
-    saveCase(newCase);
-    setIsSaving(false);
-    
-    const newSessionCount = sessionCount + 1;
-    setSessionCount(newSessionCount);
-    
-    if (initialCount + newSessionCount >= 2) {
-      setStep(6); 
-    } else {
-      setStep(5); 
+      const newCase: Case = {
+        id: crypto.randomUUID(),
+        timestamp,
+        energy: dailyEnergy,
+        feeling: currentEntry.feeling as Feeling,
+        context: currentEntry.context as Context,
+        whatHappened: currentEntry.whatHappened || '',
+        howItFelt: currentEntry.howItFelt || '',
+        whatIDid: currentEntry.whatIDid || '',
+        whatResulted: currentEntry.whatResulted || '',
+        learning: currentEntry.learning?.trim() || undefined,
+        learningType: learningType, 
+      };
+      
+      await saveCase(newCase);
+      
+      const newSessionCount = sessionCount + 1;
+      setSessionCount(newSessionCount);
+      
+      if (initialCount + newSessionCount >= 2) {
+        setStep(6); 
+      } else {
+        setStep(5); 
+      }
+    } catch (e) {
+      console.error(e);
+      alert("مشكلة في الحفظ، جرب تاني.");
+    } finally {
+      setIsSaving(false);
     }
   };
 
@@ -254,7 +260,7 @@ const DailyMode: React.FC<DailyModeProps> = ({ onComplete, onCancel, targetDate 
             onClick={handleSaveEntry}
             className="w-full py-6 bg-text-main text-white rounded-custom disabled:opacity-30 font-bold transition-all text-2xl shadow-xl border-b-4 border-black/20"
           >
-            {isSaving ? 'لحظة...' : 'تم الحفظ'}
+            {isSaving ? 'بيحفظ مشفر...' : 'تم الحفظ'}
           </button>
         </div>
       )}
