@@ -5,11 +5,43 @@ export const config = {
   runtime: 'edge',
 };
 
+async function initDatabase(sql: any) {
+  // Split into atomic calls for better reliability in Edge environments
+  await sql(`
+    CREATE TABLE IF NOT EXISTS users (
+      id TEXT PRIMARY KEY,
+      username TEXT UNIQUE NOT NULL,
+      auth_hash TEXT NOT NULL,
+      salt TEXT NOT NULL,
+      created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+    );
+  `);
+  await sql(`
+    CREATE TABLE IF NOT EXISTS cases (
+      id TEXT PRIMARY KEY,
+      user_id TEXT NOT NULL,
+      encrypted_payload TEXT NOT NULL,
+      iv TEXT NOT NULL,
+      timestamp BIGINT NOT NULL,
+      created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+    );
+  `);
+  await sql(`
+    CREATE TABLE IF NOT EXISTS habits (
+      id TEXT PRIMARY KEY,
+      user_id TEXT NOT NULL,
+      encrypted_payload TEXT NOT NULL,
+      iv TEXT NOT NULL,
+      created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+    );
+  `);
+}
+
 export default async function handler(req: Request) {
   const DATABASE_URL = process.env.DATABASE_URL;
 
   if (!DATABASE_URL) {
-    return new Response(JSON.stringify({ error: 'DATABASE_URL is missing in environment variables.' }), { 
+    return new Response(JSON.stringify({ error: 'Environment configuration error: DATABASE_URL is missing.' }), { 
       status: 500, 
       headers: { 'Content-Type': 'application/json' } 
     });
@@ -20,38 +52,18 @@ export default async function handler(req: Request) {
   const method = req.method;
 
   try {
-    // 1. Optimized Table Setup (Single Call)
-    await sql(`
-      DO $$ 
-      BEGIN
-        CREATE TABLE IF NOT EXISTS users (
-          id TEXT PRIMARY KEY,
-          username TEXT UNIQUE NOT NULL,
-          auth_hash TEXT NOT NULL,
-          salt TEXT NOT NULL,
-          created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
-        );
-        CREATE TABLE IF NOT EXISTS cases (
-          id TEXT PRIMARY KEY,
-          user_id TEXT NOT NULL,
-          encrypted_payload TEXT NOT NULL,
-          iv TEXT NOT NULL,
-          timestamp BIGINT NOT NULL,
-          created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
-        );
-        CREATE TABLE IF NOT EXISTS habits (
-          id TEXT PRIMARY KEY,
-          user_id TEXT NOT NULL,
-          encrypted_payload TEXT NOT NULL,
-          iv TEXT NOT NULL,
-          created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
-        );
-      END $$;
-    `);
+    // Run initialization - using IF NOT EXISTS makes this safe to run frequently
+    // though in high traffic you'd ideally move this to a migration script.
+    await initDatabase(sql);
 
     if (method === 'GET') {
       const username = url.searchParams.get('username');
-      if (!username) return new Response(JSON.stringify({ error: 'Username required' }), { status: 400, headers: { 'Content-Type': 'application/json' } });
+      if (!username) {
+        return new Response(JSON.stringify({ error: 'Username required' }), { 
+          status: 400, 
+          headers: { 'Content-Type': 'application/json' } 
+        });
+      }
       
       const users = await sql('SELECT salt FROM users WHERE username = $1', [username]);
       const user = users[0];
@@ -63,7 +75,8 @@ export default async function handler(req: Request) {
     }
 
     if (method === 'POST') {
-      const { username, authHash, salt, type, userId: providedId } = await req.json();
+      const body = await req.json();
+      const { username, authHash, salt, type, userId: providedId } = body;
 
       if (type === 'register') {
         const id = providedId || crypto.randomUUID();
@@ -78,16 +91,24 @@ export default async function handler(req: Request) {
           [username, authHash]
         );
         const user = users[0];
-        if (!user) return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401, headers: { 'Content-Type': 'application/json' } });
+        if (!user) {
+          return new Response(JSON.stringify({ error: 'Unauthorized' }), { 
+            status: 401, 
+            headers: { 'Content-Type': 'application/json' } 
+          });
+        }
         return new Response(JSON.stringify({ userId: user.id }), { headers: { 'Content-Type': 'application/json' } });
       }
     }
     
-    return new Response(JSON.stringify({ error: 'Method not allowed' }), { status: 405, headers: { 'Content-Type': 'application/json' } });
+    return new Response(JSON.stringify({ error: 'Method not allowed' }), { 
+      status: 405, 
+      headers: { 'Content-Type': 'application/json' } 
+    });
   } catch (err: any) {
     console.error('API_AUTH_CRASH:', err);
     return new Response(JSON.stringify({ 
-      error: 'Database Connection Error', 
+      error: 'Database error occurred', 
       message: err.message,
       code: err.code 
     }), { 
