@@ -21,12 +21,17 @@ const AuthView: React.FC<AuthViewProps> = ({ onAuthComplete }) => {
     setError('');
 
     try {
-      // 1. Handshake with server to get salt and verify user existence
-      // Using /api/auth with GET for the handshake
-      const handshake = await fetch(`/api/auth?username=${username}`);
+      // 1. Handshake with server to get salt
+      const handshake = await fetch(`/api/auth?username=${encodeURIComponent(username)}`);
+      if (!handshake.ok) {
+        const errData = await handshake.json();
+        throw new Error(errData.dbMessage || "Handshake failed");
+      }
+      
       const userData = await handshake.json();
       
       let salt: string;
+      let registrationId: string | undefined;
 
       if (isLogin) {
         if (!userData.exists) throw new Error("User not found");
@@ -34,12 +39,13 @@ const AuthView: React.FC<AuthViewProps> = ({ onAuthComplete }) => {
       } else {
         if (userData.exists) throw new Error("Username taken");
         salt = generateSalt();
+        registrationId = crypto.randomUUID(); // Generate ID on client
       }
 
       // 2. Derive keys locally
       const { encryptionKey, authHash } = await deriveKeys(password, salt);
       
-      // 3. Authenticate / Register with server
+      // 3. Authenticate / Register
       const authResponse = await fetch('/api/auth', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -47,11 +53,17 @@ const AuthView: React.FC<AuthViewProps> = ({ onAuthComplete }) => {
           username, 
           authHash, 
           salt: isLogin ? undefined : salt,
-          type: isLogin ? 'login' : 'register'
+          type: isLogin ? 'login' : 'register',
+          userId: registrationId
         })
       });
 
-      if (!authResponse.ok) throw new Error("Invalid credentials");
+      if (!authResponse.ok) {
+        const errData = await authResponse.json();
+        if (authResponse.status === 401) throw new Error("Invalid credentials");
+        throw new Error(errData.dbMessage || "Auth failed");
+      }
+      
       const { userId } = await authResponse.json();
 
       const session: UserSession = {
@@ -63,7 +75,6 @@ const AuthView: React.FC<AuthViewProps> = ({ onAuthComplete }) => {
 
       setSession(session);
       
-      // 4. Critical: Restore user data if logging in
       if (isLogin) {
         await syncFromCloud();
       }
@@ -72,10 +83,11 @@ const AuthView: React.FC<AuthViewProps> = ({ onAuthComplete }) => {
       setIsLoading(false);
 
     } catch (err: any) {
+      console.error("Auth process error:", err);
       if (err.message === "User not found") setError('المستخدم ده مش موجود.');
       else if (err.message === "Username taken") setError('الاسم ده محجوز فعلاً.');
       else if (err.message === "Invalid credentials") setError('كلمة السر مش صح.');
-      else setError('في مشكلة في الاتصال، جرب تاني.');
+      else setError(`خطأ: ${err.message}`);
       setIsLoading(false);
     }
   };

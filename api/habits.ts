@@ -45,7 +45,7 @@ export default async function handler(req: Request) {
     return new Response('Method not allowed', { status: 405 });
   } catch (err: any) {
     console.error('Habits API Error:', err);
-    return new Response(JSON.stringify({ error: err.message }), { 
+    return new Response(JSON.stringify({ error: 'DB Error', details: err.message }), { 
       status: 500, 
       headers: { 'Content-Type': 'application/json' } 
     });

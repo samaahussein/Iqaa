@@ -5,11 +5,49 @@ export const config = {
   runtime: 'edge',
 };
 
+async function ensureTables(sql: any) {
+  try {
+    // We use TEXT for IDs instead of UUID to avoid dependency on the pgcrypto extension
+    await sql(`
+      CREATE TABLE IF NOT EXISTS users (
+        id TEXT PRIMARY KEY,
+        username TEXT UNIQUE NOT NULL,
+        auth_hash TEXT NOT NULL,
+        salt TEXT NOT NULL,
+        created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+      );
+    `);
+    await sql(`
+      CREATE TABLE IF NOT EXISTS cases (
+        id TEXT PRIMARY KEY,
+        user_id TEXT NOT NULL,
+        encrypted_payload TEXT NOT NULL,
+        iv TEXT NOT NULL,
+        timestamp BIGINT NOT NULL,
+        created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+      );
+    `);
+    await sql(`
+      CREATE TABLE IF NOT EXISTS habits (
+        id TEXT PRIMARY KEY,
+        user_id TEXT NOT NULL,
+        encrypted_payload TEXT NOT NULL,
+        iv TEXT NOT NULL,
+        created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+      );
+    `);
+  } catch (e) {
+    console.error("Initialization error (non-fatal):", e);
+  }
+}
+
 export default async function handler(req: Request) {
   const DATABASE_URL = process.env.DATABASE_URL;
 
   if (!DATABASE_URL) {
-    return new Response(JSON.stringify({ error: 'DATABASE_URL environment variable is missing.' }), { 
+    return new Response(JSON.stringify({ 
+      error: 'Environment variable DATABASE_URL is missing.' 
+    }), { 
       status: 500, 
       headers: { 'Content-Type': 'application/json' } 
     });
@@ -20,37 +58,8 @@ export default async function handler(req: Request) {
   const method = req.method;
 
   try {
-    // 1. Ensure Tables Exist (Auto-Initialization)
-    // We run these as separate commands because the HTTP driver prefers single statements
-    await sql('CREATE EXTENSION IF NOT EXISTS "pgcrypto";');
-    await sql(`
-      CREATE TABLE IF NOT EXISTS users (
-        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-        username TEXT UNIQUE NOT NULL,
-        auth_hash TEXT NOT NULL,
-        salt TEXT NOT NULL,
-        created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
-      );
-    `);
-    await sql(`
-      CREATE TABLE IF NOT EXISTS cases (
-        id TEXT PRIMARY KEY,
-        user_id UUID REFERENCES users(id),
-        encrypted_payload TEXT NOT NULL,
-        iv TEXT NOT NULL,
-        timestamp BIGINT NOT NULL,
-        created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
-      );
-    `);
-    await sql(`
-      CREATE TABLE IF NOT EXISTS habits (
-        id TEXT PRIMARY KEY,
-        user_id UUID REFERENCES users(id),
-        encrypted_payload TEXT NOT NULL,
-        iv TEXT NOT NULL,
-        created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
-      );
-    `);
+    // Run initialization
+    await ensureTables(sql);
 
     if (method === 'GET') {
       const username = url.searchParams.get('username');
@@ -66,12 +75,14 @@ export default async function handler(req: Request) {
     }
 
     if (method === 'POST') {
-      const { username, authHash, salt, type } = await req.json();
+      const { username, authHash, salt, type, userId: providedId } = await req.json();
 
       if (type === 'register') {
+        // userId is generated on client for consistency
+        const id = providedId || crypto.randomUUID();
         const result = await sql(
-          'INSERT INTO users (username, auth_hash, salt) VALUES ($1, $2, $3) RETURNING id',
-          [username, authHash, salt]
+          'INSERT INTO users (id, username, auth_hash, salt) VALUES ($1, $2, $3, $4) RETURNING id',
+          [id, username, authHash, salt]
         );
         return new Response(JSON.stringify({ userId: result[0].id }), { headers: { 'Content-Type': 'application/json' } });
       } else {
@@ -87,10 +98,11 @@ export default async function handler(req: Request) {
     
     return new Response('Method not allowed', { status: 405 });
   } catch (err: any) {
-    console.error('Auth API Error:', err);
+    console.error('Auth API Error Details:', err);
     return new Response(JSON.stringify({ 
       error: 'Internal Server Error', 
-      details: err.message 
+      dbMessage: err.message,
+      dbCode: err.code 
     }), { 
       status: 500, 
       headers: { 'Content-Type': 'application/json' } 
