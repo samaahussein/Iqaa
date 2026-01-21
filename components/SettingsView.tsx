@@ -1,6 +1,6 @@
 
 import React, { useState } from 'react';
-import { getApiUrl, setApiUrl, syncAllToSheets } from '../services/storage';
+import { getApiUrl, setApiUrl, syncAllToSheets } from '../services/storage.ts';
 
 interface SettingsViewProps {
   onBack: () => void;

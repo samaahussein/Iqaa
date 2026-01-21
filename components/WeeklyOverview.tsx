@@ -1,7 +1,7 @@
 
 import React, { useMemo, useState } from 'react';
-import { getCases } from '../services/storage';
-import { Case } from '../types';
+import { getCases } from '../services/storage.ts';
+import { Case } from '../types.ts';
 
 interface WeeklyOverviewProps {
   onBack: () => void;

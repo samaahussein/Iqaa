@@ -1,12 +1,13 @@
+
 import React, { useState, useEffect } from 'react';
 import { 
   EnergyLevel, Feeling, Context, Case, LearningType 
-} from '../types';
+} from '../types.ts';
 import { 
   FEELING_OPTIONS, CONTEXT_OPTIONS
-} from '../constants';
-import { saveCase, getTodaysCount } from '../services/storage';
-import { classifyLearning } from '../services/classifier';
+} from '../constants.ts';
+import { saveCase, getTodaysCount } from '../services/storage.ts';
+import { classifyLearning } from '../services/classifier.ts';
 
 interface DailyModeProps {
   onComplete: () => void;

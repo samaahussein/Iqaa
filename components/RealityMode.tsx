@@ -1,7 +1,8 @@
+
 import React, { useState } from 'react';
-import { Context, Feeling, Case } from '../types';
-import { CONTEXT_OPTIONS, FEELING_OPTIONS } from '../constants';
-import { findMatch } from '../services/storage';
+import { Context, Feeling, Case } from '../types.ts';
+import { CONTEXT_OPTIONS, FEELING_OPTIONS } from '../constants.ts';
+import { findMatch } from '../services/storage.ts';
 
 interface RealityModeProps {
   onComplete: () => void;

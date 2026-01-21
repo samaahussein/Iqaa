@@ -1,5 +1,5 @@
 
-import { EnergyLevel, Feeling, Context, ResponseAction, Outcome } from './types';
+import { EnergyLevel, Feeling, Context, ResponseAction, Outcome } from './types.ts';
 
 export const ENERGY_OPTIONS = [
   { value: EnergyLevel.LOW, label: 'Low' },

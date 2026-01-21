@@ -1,5 +1,5 @@
 
-import { Case, Outcome, Pattern } from '../types';
+import { Case, Outcome, Pattern } from '../types.ts';
 
 const STORAGE_KEY = 'mirror_cases_v1';
 const PATTERNS_KEY = 'mirror_patterns_v1';

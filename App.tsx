@@ -1,13 +1,13 @@
 
 import React, { useState, useEffect } from 'react';
-import { AppMode } from './types';
-import DailyMode from './components/DailyMode';
-import RealityMode from './components/RealityMode';
-import CalendarView from './components/CalendarView';
-import WeeklyOverview from './components/WeeklyOverview';
-import HistoryView from './components/HistoryView';
-import PatternManager from './components/PatternManager';
-import SettingsView from './components/SettingsView';
+import { AppMode } from './types.ts';
+import DailyMode from './components/DailyMode.tsx';
+import RealityMode from './components/RealityMode.tsx';
+import CalendarView from './components/CalendarView.tsx';
+import WeeklyOverview from './components/WeeklyOverview.tsx';
+import HistoryView from './components/HistoryView.tsx';
+import PatternManager from './components/PatternManager.tsx';
+import SettingsView from './components/SettingsView.tsx';
 
 const App: React.FC = () => {
   const [mode, setMode] = useState<AppMode>('INTRO');

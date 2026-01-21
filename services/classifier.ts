@@ -1,6 +1,6 @@
 
 import { GoogleGenAI, Type } from "@google/genai";
-import { LearningType } from "../types";
+import { LearningType } from "../types.ts";
 
 /**
  * Internally classifies a learning entry.

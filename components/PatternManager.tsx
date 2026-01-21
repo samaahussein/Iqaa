@@ -1,6 +1,7 @@
+
 import React, { useState, useMemo } from 'react';
-import { getPatterns, savePattern, deletePattern, getCases, saveCase, deleteCase } from '../services/storage';
-import { Pattern, Case, Feeling, Context, Outcome } from '../types';
+import { getPatterns, savePattern, deletePattern, getCases, saveCase, deleteCase } from '../services/storage.ts';
+import { Pattern, Case, Feeling, Context, Outcome } from '../types.ts';
 
 interface PatternManagerProps { onBack: () => void; }
 

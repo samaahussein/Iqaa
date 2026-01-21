@@ -1,7 +1,7 @@
 
 import React, { useState } from 'react';
-import { getCases, deleteCase } from '../services/storage';
-import { Case } from '../types';
+import { getCases, deleteCase } from '../services/storage.ts';
+import { Case } from '../types.ts';
 
 interface HistoryViewProps {
   onBack: () => void;
