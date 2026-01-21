@@ -23,9 +23,17 @@ const AuthView: React.FC<AuthViewProps> = ({ onAuthComplete }) => {
     try {
       // 1. Handshake with server to get salt
       const handshake = await fetch(`/api/auth?username=${encodeURIComponent(username)}`);
+      
       if (!handshake.ok) {
-        const errData = await handshake.json();
-        throw new Error(errData.dbMessage || "Handshake failed");
+        const text = await handshake.text();
+        let msg = "خطأ في الاتصال بالسيرفر";
+        try {
+          const json = JSON.parse(text);
+          msg = json.message || json.error || msg;
+        } catch (e) {
+          msg = text.substring(0, 100); // Show start of HTML error if it's not JSON
+        }
+        throw new Error(msg);
       }
       
       const userData = await handshake.json();
@@ -39,7 +47,7 @@ const AuthView: React.FC<AuthViewProps> = ({ onAuthComplete }) => {
       } else {
         if (userData.exists) throw new Error("Username taken");
         salt = generateSalt();
-        registrationId = crypto.randomUUID(); // Generate ID on client
+        registrationId = crypto.randomUUID(); 
       }
 
       // 2. Derive keys locally
@@ -59,9 +67,17 @@ const AuthView: React.FC<AuthViewProps> = ({ onAuthComplete }) => {
       });
 
       if (!authResponse.ok) {
-        const errData = await authResponse.json();
+        const text = await authResponse.text();
         if (authResponse.status === 401) throw new Error("Invalid credentials");
-        throw new Error(errData.dbMessage || "Auth failed");
+        
+        let msg = "فشل في تسجيل الدخول";
+        try {
+          const json = JSON.parse(text);
+          msg = json.message || json.error || msg;
+        } catch (e) {
+          msg = text.substring(0, 100);
+        }
+        throw new Error(msg);
       }
       
       const { userId } = await authResponse.json();
@@ -133,7 +149,11 @@ const AuthView: React.FC<AuthViewProps> = ({ onAuthComplete }) => {
             </div>
           </div>
 
-          {error && <p className="text-red-500 text-sm font-bold text-center animate-pulse">{error}</p>}
+          {error && (
+            <div className="bg-red-50 border border-red-100 p-4 rounded-xl text-center">
+              <p className="text-red-500 text-sm font-bold animate-pulse">{error}</p>
+            </div>
+          )}
 
           <button
             disabled={isLoading}

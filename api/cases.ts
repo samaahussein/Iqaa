@@ -7,10 +7,10 @@ export const config = {
 
 export default async function handler(req: Request) {
   const DATABASE_URL = process.env.DATABASE_URL;
-  if (!DATABASE_URL) return new Response(JSON.stringify({ error: 'DATABASE_URL missing' }), { status: 500 });
+  if (!DATABASE_URL) return new Response(JSON.stringify({ error: 'DATABASE_URL missing' }), { status: 500, headers: { 'Content-Type': 'application/json' } });
 
   const userId = req.headers.get('X-User-ID');
-  if (!userId) return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401 });
+  if (!userId) return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401, headers: { 'Content-Type': 'application/json' } });
 
   const sql = neon(DATABASE_URL);
   const method = req.method;
@@ -42,9 +42,9 @@ export default async function handler(req: Request) {
       return new Response(JSON.stringify({ success: true }), { headers: { 'Content-Type': 'application/json' } });
     }
     
-    return new Response('Method not allowed', { status: 405 });
+    return new Response(JSON.stringify({ error: 'Method not allowed' }), { status: 405, headers: { 'Content-Type': 'application/json' } });
   } catch (err: any) {
-    console.error('Cases API Error:', err);
+    console.error('API_CASES_CRASH:', err);
     return new Response(JSON.stringify({ error: 'DB Error', details: err.message }), { 
       status: 500, 
       headers: { 'Content-Type': 'application/json' } 
