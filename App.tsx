@@ -110,11 +110,11 @@ const App: React.FC = () => {
 
             <div className="space-y-4">
               <button onClick={() => handleStartDaily()} className="w-full bg-app-clay text-white p-10 rounded-custom shadow-airy transition-all hover:brightness-105 active:scale-[0.98] text-center border-b-4 border-black/10">
-                <span className="text-3xl font-bold">يوم عادي</span>
+                <span className="text-3xl font-bold">نحكي عن النهاردة</span>
                 <p className="text-white/80 text-sm mt-1 font-medium">سجل اللي حصل في يومك</p>
               </button>
               <button onClick={() => setMode('REALITY')} className="w-full bg-app-sage text-white p-10 rounded-custom shadow-airy transition-all hover:brightness-105 active:scale-[0.98] text-center border-b-4 border-black/10">
-                <span className="text-3xl font-bold">مود واقع</span>
+                <span className="text-3xl font-bold">نفتكر حاجة سوا</span>
                 <p className="text-white/80 text-sm mt-1 font-medium">إيه اللي حاسس بيه دلوقتي؟</p>
               </button>
             </div>
