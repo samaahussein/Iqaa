@@ -94,18 +94,28 @@ const App: React.FC = () => {
         return (
           <div className="max-w-md mx-auto space-y-12 py-12 px-6 animate-gentle" dir="rtl">
             <header className="flex justify-between items-center mb-8">
+              <div className="flex items-center gap-3">
+                <div className="flex items-end gap-1 h-6">
+                  <div className="w-1 h-3 bg-app-clay rounded-full"></div>
+                  <div className="w-1 h-5 bg-app-sage rounded-full"></div>
+                  <div className="w-1 h-4 bg-app-mauve rounded-full"></div>
+                  <div className="w-1 h-6 bg-app-olive rounded-full"></div>
+                  <div className="w-1 h-3.5 bg-app-blue-gray rounded-full"></div>
+                </div>
+                <h1 className="text-2xl font-bold text-text-main tracking-tight">إيقاع Iqaa</h1>
+              </div>
+              
               <div className="flex items-center gap-2">
+                <button onClick={() => setMode('SETTINGS')} className="p-2 text-text-muted hover:bg-gray-100 rounded-full transition-all">
+                  <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                  </svg>
+                </button>
                 <div className="w-8 h-8 rounded-full bg-app-sage flex items-center justify-center text-[10px] font-bold text-white uppercase tracking-tighter">
                   {session?.username.substring(0,2)}
                 </div>
               </div>
-              <h1 className="text-4xl font-bold text-text-main tracking-tight">إيقاع</h1>
-              <button onClick={() => setMode('SETTINGS')} className="p-2 text-text-muted hover:bg-gray-100 rounded-full transition-all">
-                <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                </svg>
-              </button>
             </header>
 
             <div className="space-y-4">
